@@ -315,23 +315,6 @@ void Window::RemoveWindowExStyle(LONG_PTR flag)
 	}
 }
 
-void Window::PaintTransparent(HDC source, int alpha)
-{
-	BLENDFUNCTION blendPixelFunction = { AC_SRC_OVER, 0, (BYTE)alpha, AC_SRC_ALPHA };
-	POINT ptWindowScreenPosition = { x(), y() };
-	POINT ptSrc = { 0 };
-	SIZE szWindow = { width(), height() };
-
-	HDC dcMemory = source;
-	if (!UpdateLayeredWindow(hwnd_, nullptr, &ptWindowScreenPosition, &szWindow, dcMemory, &ptSrc, 0, &blendPixelFunction, ULW_ALPHA))
-	{
-		// Retry after resetting WS_EX_LAYERED flag.
-		RemoveWindowExStyle(WS_EX_LAYERED);
-		AddWindowExStyle(WS_EX_LAYERED);
-		UpdateLayeredWindow(hwnd_, nullptr, &ptWindowScreenPosition, &szWindow, dcMemory, &ptSrc, 0, &blendPixelFunction, ULW_ALPHA);
-	}
-}
-
 RefPtr<Window> Window::Create(Monitor* monitor, uint32_t width, uint32_t height, bool fullscreen, DWORD window_flags)
 {
 	return AdoptRef(*(new Window(monitor, width, height, fullscreen, window_flags)));
@@ -450,11 +433,6 @@ void Window::DrawSurface(int x, int y, Surface* surface) {
 
 void Window::Paint()
 {
-	// Uncomment this block to update the view contents
-	/*for (auto overlay : overlays_) {
-		overlay->view()->set_needs_paint(true);
-	}*/
-
 	if (!is_accelerated()) {
 		OverlayManager::Render();
 		OverlayManager::Paint();
@@ -502,6 +480,7 @@ void Window::PaintLayeredWindow(HDC dc)
 	HDC dcMemory = dc;
 	if (!UpdateLayeredWindow(hwnd_, nullptr, &ptWindowScreenPosition, &szWindow, dcMemory, &ptSrc, 0, &blendPixelFunction, ULW_ALPHA))
 	{
+		// After a call to SetLayerdWindowAttribute, UpdateLayeredWindow doesn't work unless WS_EX_LAYERED is re-set.
 		// Retry after resetting WS_EX_LAYERED flag.
 		RemoveWindowExStyle(WS_EX_LAYERED);
 		AddWindowExStyle(WS_EX_LAYERED);

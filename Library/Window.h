@@ -100,6 +100,7 @@ public:
 		window_needs_repaint_ = true;
 	}
 
+	// For now let's support opaque windows. We'll support transparency going forward when implementing fade and stuff.
 	void PaintLayeredWindow(HDC dc);
 
 	REF_COUNTED_IMPL(Window);
@@ -110,8 +111,6 @@ protected:
 
 	void AddWindowExStyle(LONG_PTR flag);
 	void RemoveWindowExStyle(LONG_PTR flag);
-
-	void PaintTransparent(HDC source, int alpha = 0);
 
 	DISALLOW_COPY_AND_ASSIGN(Window);
 

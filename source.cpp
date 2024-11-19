@@ -17,7 +17,7 @@ int WINAPI wWinMain(
 	//settings.force_cpu_render = true;
 
 	Config config;
-	config.user_stylesheet = "html, body { background: transparent; }";
+	config.user_stylesheet = "html, body { background: #00000001; }";
 	
 	auto app = Application::Create(settings, config);
 

@@ -25,21 +25,6 @@ SwapChainD3D11::SwapChainD3D11(GPUContextD3D11* context, GPUDriverD3D11* driver,
 	UINT width = rc.right - rc.left;
 	UINT height = rc.bottom - rc.top;
 
-	/*DXGI_SWAP_CHAIN_DESC sd;
-	::ZeroMemory(&sd, sizeof(sd));
-	sd.BufferCount = 1;
-	sd.BufferDesc.Width = width;
-	sd.BufferDesc.Height = height;
-	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	sd.BufferDesc.RefreshRate.Numerator = 120;
-	sd.BufferDesc.RefreshRate.Denominator = 1;
-	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.OutputWindow = hWnd;
-	sd.SampleDesc.Count = 1;
-	sd.SampleDesc.Quality = 0;
-	sd.Windowed = !fullscreen;
-	sd.Flags = (fullscreen ? DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH : 0) | DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;*/
-
 	IDXGIDevice* dxgiDevice = nullptr;
 	hr = context_->device()->QueryInterface(__uuidof(IDXGIDevice), (void**)&dxgiDevice);
 
@@ -49,18 +34,8 @@ SwapChainD3D11::SwapChainD3D11(GPUContextD3D11* context, GPUDriverD3D11* driver,
 	IDXGIFactory* dxgiFactory = nullptr;
 	dxgiAdapter->GetParent(__uuidof(IDXGIFactory), (void**)&dxgiFactory);
 
-	//hr = dxgiFactory->CreateSwapChain(context_->device(), &sd, swap_chain_.GetAddressOf());
-
-	//if (FAILED(hr)) {
-	//	std::ostringstream msg;
-
-	//	msg << "Error 0x" << hr;
-
-	//	// Unable to create swap chain
-	//	MessageBoxA(NULL, "Unable to create swap chain", msg.str().c_str(), MB_OK);
-
-	//	swap_chain_.Reset();
-	//}
+	IDXGIFactory2* dxgiFactory1;
+	hr = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2), (void**)&dxgiFactory1);
 
 	DXGI_SWAP_CHAIN_DESC1 sd1;
 	::ZeroMemory(&sd1, sizeof sd1);
@@ -75,10 +50,10 @@ SwapChainD3D11::SwapChainD3D11(GPUContextD3D11* context, GPUDriverD3D11* driver,
 	sd1.Scaling = DXGI_SCALING_STRETCH;
 	sd1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	sd1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-	sd1.Flags = DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
 
-	IDXGIFactory2* dxgiFactory1;
-	hr = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2), (void**)&dxgiFactory1);
+	// we will be using IDXGISurface1::GetDC to get the underlying DC and draw the window
+	// using UpdateLayerdWindow.
+	sd1.Flags = DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
 
 	hr = dxgiFactory1->CreateSwapChainForHwnd(dxgiDevice, hwnd_, &sd1, nullptr, NULL, swap_chain1_.GetAddressOf());
 

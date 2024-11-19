@@ -131,8 +131,7 @@ void Application::Run()
 		if (result == WAIT_TIMEOUT) {
 			Update();
 			for (auto window : windows_) {
-				//if (window->NeedsRepaint()) {
-				if (true) { // NeedsRepaint() is always false unless mouse over
+				if (window->NeedsRepaint()) {
 					window->InvalidateWindow();
 					window->Paint();
 				}
@@ -182,5 +181,9 @@ Application* Application::instance()
 void Application::Update()
 {
 	renderer()->Update();
+
+	// ul 1.4 needs this to be called when you expect animations.
+	// TODO: revisit when docs are updated.
+	renderer()->RefreshDisplay(0);
 }
 
