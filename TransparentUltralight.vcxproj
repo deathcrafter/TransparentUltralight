@@ -120,7 +120,9 @@
 
 mkdir "$(OutDir)assets"
 mkdir "$(OutDir)assets\resources"
-xcopy /y /d ".\Ultralight\resources" "$(OutDir)assets\resources"</Command>
+xcopy /y /d ".\Ultralight\resources" "$(OutDir)assets\resources"
+
+CALL .\scripts\post\move_apps.bat ".\apps" "$(OutDir)assets\apps"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

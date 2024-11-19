@@ -3,6 +3,7 @@
 #include <ShellScalingAPI.h>
 #include <tchar.h>
 #include <windowsx.h>
+#include <dwmapi.h>
 
 #include "Application.h"
 #include "DIBSurface.h"
@@ -11,6 +12,8 @@
 
 #include "gpu/GPUDriver.h"
 #include "gpu/GPUContext.h"
+
+#pragma comment (lib, "Dwmapi.lib")
 
 #define WINDOWDATA() ((WindowData*)GetWindowLongPtr(hWnd, GWLP_USERDATA))
 #define WINDOW() (WINDOWDATA()->window)
@@ -24,11 +27,13 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 
 	switch (message) {
 	case WM_PAINT:
-		g_dc = hdc = BeginPaint(hWnd, &ps);
+		// Ignore WM_PAINT as we are creating a layered window
+
+		/*g_dc = hdc = BeginPaint(hWnd, &ps);
 		WINDOW()->InvalidateWindow();
 		WINDOW()->Paint();
 		EndPaint(hWnd, &ps);
-		g_dc = 0;
+		g_dc = 0;*/
 		break;
 	case WM_DESTROY:
 		WINDOW()->OnClose();
@@ -205,7 +210,7 @@ Window::Window(Monitor* monitor, uint32_t width, uint32_t height, bool fullscree
 	RECT rc = { 0, 0, (LONG)ScreenToPixels(width), (LONG)ScreenToPixels(height) };
 	AdjustWindowRect(&rc, style_, FALSE);
 	hwnd_ = ::CreateWindowEx(
-		NULL, class_name.c_str(), _T(""), fullscreen ? (WS_EX_TOPMOST | WS_POPUP) : style_,
+		NULL, class_name.c_str(), _T(""), (fullscreen ? (WS_EX_TOPMOST | WS_POPUP) : style_) | WS_EX_LAYERED,
 		fullscreen ? 0 : CW_USEDEFAULT, fullscreen ? 0 : CW_USEDEFAULT,
 		fullscreen ? ScreenToPixels(width) : (rc.right - rc.left),
 		fullscreen ? ScreenToPixels(height) : (rc.bottom - rc.top), NULL, NULL, hInstance, NULL);
@@ -214,6 +219,9 @@ Window::Window(Monitor* monitor, uint32_t width, uint32_t height, bool fullscree
 		MessageBoxW(NULL, (LPCWSTR)L"CreateWindowEx failed", (LPCWSTR)L"Notification", MB_OK);
 		exit(-1);
 	}
+
+	const MARGINS Margin = { -1 };
+	DwmExtendFrameIntoClientArea(hwnd_, &Margin);
 
 	window_data_.window = this;
 	window_data_.cur_btn = ultralight::MouseEvent::kButton_None;
@@ -289,6 +297,41 @@ Window::~Window()
 	}
 }
 
+void Window::AddWindowExStyle(LONG_PTR flag)
+{
+	LONG_PTR style = GetWindowLongPtr(hwnd_, GWL_EXSTYLE);
+	if ((style & flag) == 0)
+	{
+		SetWindowLongPtr(hwnd_, GWL_EXSTYLE, style | flag);
+	}
+}
+
+void Window::RemoveWindowExStyle(LONG_PTR flag)
+{
+	LONG_PTR style = GetWindowLongPtr(hwnd_, GWL_EXSTYLE);
+	if ((style & flag) != 0)
+	{
+		SetWindowLongPtr(hwnd_, GWL_EXSTYLE, style & ~flag);
+	}
+}
+
+void Window::PaintTransparent(HDC source, int alpha)
+{
+	BLENDFUNCTION blendPixelFunction = { AC_SRC_OVER, 0, (BYTE)alpha, AC_SRC_ALPHA };
+	POINT ptWindowScreenPosition = { x(), y() };
+	POINT ptSrc = { 0 };
+	SIZE szWindow = { width(), height() };
+
+	HDC dcMemory = source;
+	if (!UpdateLayeredWindow(hwnd_, nullptr, &ptWindowScreenPosition, &szWindow, dcMemory, &ptSrc, 0, &blendPixelFunction, ULW_ALPHA))
+	{
+		// Retry after resetting WS_EX_LAYERED flag.
+		RemoveWindowExStyle(WS_EX_LAYERED);
+		AddWindowExStyle(WS_EX_LAYERED);
+		UpdateLayeredWindow(hwnd_, nullptr, &ptWindowScreenPosition, &szWindow, dcMemory, &ptSrc, 0, &blendPixelFunction, ULW_ALPHA);
+	}
+}
+
 RefPtr<Window> Window::Create(Monitor* monitor, uint32_t width, uint32_t height, bool fullscreen, DWORD window_flags)
 {
 	return AdoptRef(*(new Window(monitor, width, height, fullscreen, window_flags)));
@@ -327,7 +370,7 @@ int Window::x() const
 	POINT pos = { 0, 0 };
 	ClientToScreen(hwnd_, &pos);
 
-	return PixelsToScreen(pos.x);
+	return pos.x;
 }
 
 int Window::y() const
@@ -335,7 +378,7 @@ int Window::y() const
 	POINT pos = { 0, 0 };
 	ClientToScreen(hwnd_, &pos);
 
-	return PixelsToScreen(pos.y);
+	return pos.y;
 }
 
 void Window::SetTitle(const char* title)
@@ -402,15 +445,16 @@ void Window::Close() { DestroyWindow(hwnd_); }
 
 void Window::DrawSurface(int x, int y, Surface* surface) {
 	DIBSurface* dibSurface = static_cast<DIBSurface*>(surface);
-
-	if (!g_dc)
-		return;
-	HDC hdc = g_dc;
-	BitBlt(hdc, x, y, (int)surface->width(), (int)surface->height(), dibSurface->dc(), 0, 0, SRCCOPY);
+	PaintLayeredWindow(dibSurface->dc());
 }
 
 void Window::Paint()
 {
+	// Uncomment this block to update the view contents
+	/*for (auto overlay : overlays_) {
+		overlay->view()->set_needs_paint(true);
+	}*/
+
 	if (!is_accelerated()) {
 		OverlayManager::Render();
 		OverlayManager::Paint();
@@ -425,17 +469,46 @@ void Window::Paint()
 	gpu_driver->EndSynchronize();
 
 	if (gpu_driver->HasCommandsPending() || OverlayManager::NeedsRepaint()
-		|| (window_needs_repaint_ && !is_first_paint_)) {
+		|| window_needs_repaint_) {
+		gpu_driver->ClearRenderBuffer(swap_chain_->render_buffer_id());
+		
 		gpu_context->BeginDrawing();
+		
 		gpu_driver->DrawCommandList();
 		OverlayManager::Paint();
-		swap_chain_->PresentFrame();
+
 		gpu_context->EndDrawing();
+
+		PaintLayeredWindow(swap_chain_->GetDC());
+		swap_chain_->ReleaseDC();
+
 		if (is_first_paint_)
 			is_first_paint_ = false;
 	}
 
 	window_needs_repaint_ = false;
+}
+
+void Window::PaintLayeredWindow(HDC dc)
+{
+	PAINTSTRUCT ps;
+	BeginPaint(hwnd(), &ps);
+
+	BLENDFUNCTION blendPixelFunction = { AC_SRC_OVER, 0, (BYTE)255, AC_SRC_ALPHA };
+	POINT ptWindowScreenPosition = { x(), y() };
+	POINT ptSrc = { 0 };
+	SIZE szWindow = { width(), height() };
+
+	HDC dcMemory = dc;
+	if (!UpdateLayeredWindow(hwnd_, nullptr, &ptWindowScreenPosition, &szWindow, dcMemory, &ptSrc, 0, &blendPixelFunction, ULW_ALPHA))
+	{
+		// Retry after resetting WS_EX_LAYERED flag.
+		RemoveWindowExStyle(WS_EX_LAYERED);
+		AddWindowExStyle(WS_EX_LAYERED);
+		UpdateLayeredWindow(hwnd_, nullptr, &ptWindowScreenPosition, &szWindow, dcMemory, &ptSrc, 0, &blendPixelFunction, ULW_ALPHA);
+	}
+
+	EndPaint(hwnd(), &ps);
 }
 
 void Window::FireKeyEvent(const ultralight::KeyEvent& evt)

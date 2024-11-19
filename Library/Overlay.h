@@ -11,7 +11,7 @@ using namespace ultralight;
 class Overlay: public RefCountedImpl<Overlay>
 {
 public:
-	static RefPtr<Overlay> Create(RefPtr<Window> window, uint32_t width, uint32_t height, int x, int y);
+	static RefPtr<Overlay> Create(RefPtr<Window> window, uint32_t width, uint32_t height, int x, int y, ViewConfig cfg = ViewConfig());
 	static RefPtr<Overlay> Create(RefPtr<Window> window, RefPtr<View> view, int x, int y);
 
 	void Paint();
@@ -47,7 +47,7 @@ public:
 	REF_COUNTED_IMPL(Overlay);
 
 protected:
-	Overlay(RefPtr<Window> window, uint32_t width, uint32_t height, int x, int y);
+	Overlay(RefPtr<Window> window, uint32_t width, uint32_t height, int x, int y, ViewConfig cfg);
 	Overlay(RefPtr<Window> window, RefPtr<View> view, int x, int y);
 	~Overlay();
 

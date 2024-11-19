@@ -95,13 +95,23 @@ public:
 	void OnResize(uint32_t width, uint32_t height);
 	void OnChangeDPI(double scale, const RECT* suggested_rect);
 
-	void InvalidateWindow() { window_needs_repaint_ = true; }
+	void InvalidateWindow() {
+		InvalidateRect(hwnd_, nullptr, false);
+		window_needs_repaint_ = true;
+	}
+
+	void PaintLayeredWindow(HDC dc);
 
 	REF_COUNTED_IMPL(Window);
 protected:
 	Window(Monitor* monitor, uint32_t width, uint32_t height, bool fullscreen,
 		DWORD window_flags);
 	~Window();
+
+	void AddWindowExStyle(LONG_PTR flag);
+	void RemoveWindowExStyle(LONG_PTR flag);
+
+	void PaintTransparent(HDC source, int alpha = 0);
 
 	DISALLOW_COPY_AND_ASSIGN(Window);
 

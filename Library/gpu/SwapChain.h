@@ -1,7 +1,8 @@
 #pragma once
 #include "GPUContext.h"
 
-#include <dxgi.h>
+#include <dxgi1_2.h>
+
 
 class GPUDriverD3D11;
 
@@ -16,6 +17,9 @@ public:
 	virtual void PresentFrame();
 
 	virtual void Resize(int width, int height);
+
+	virtual HDC GetDC();
+	virtual void ReleaseDC();
 
 	// This will be null if swap chain failed creation.
 	virtual IDXGISwapChain* swap_chain();
@@ -40,6 +44,7 @@ private:
 	GPUContextD3D11* context_;
 	GPUDriverD3D11* driver_;
 	uint32_t render_buffer_id_;
+	ComPtr<IDXGISwapChain1> swap_chain1_;
 	ComPtr<IDXGISwapChain> swap_chain_;
 	ComPtr<ID3D11RenderTargetView> back_buffer_view_;
 	HWND hwnd_;
@@ -50,4 +55,6 @@ private:
 	UINT back_buffer_width_;
 	UINT back_buffer_height_;
 	int samples_ = 1;
+
+	ComPtr<IDXGISurface1> surface_;
 };

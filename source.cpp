@@ -21,11 +21,14 @@ int WINAPI wWinMain(
 	
 	auto app = Application::Create(settings, config);
 
-	auto window = Window::Create(app->main_monitor(), 600, 400, false, WS_POPUP);
+	auto window = Window::Create(app->main_monitor(), 400, 60, false, WS_POPUP);
 
-	auto overlay = Overlay::Create(window, 600, 400, 0, 0);
+	auto vwCfg = ViewConfig();
+	vwCfg.is_transparent = true;
 
-	overlay->view()->LoadURL("https://google.com");
+	auto overlay = Overlay::Create(window, window->width(), window->height(), 0, 0, vwCfg);
+
+	overlay->view()->LoadURL("file:///apps/test/index.html");
 
 	app->Run();
 

@@ -111,7 +111,7 @@ public:
 	///
 	/// @return Returns the next available render buffer ID.
 	///
-	virtual uint32_t NextRenderBufferId() override { return next_render_buffer_id_; };
+	virtual uint32_t NextRenderBufferId() override { return next_render_buffer_id_++; };
 
 	///
 	/// Create a render buffer with certain ID and buffer description.
@@ -139,7 +139,7 @@ public:
 	///
 	/// @return Returns the next available geometry ID.
 	///
-	virtual uint32_t NextGeometryId() override { return next_geometry_id_; };
+	virtual uint32_t NextGeometryId() override { return next_geometry_id_++; };
 	///
 	/// Create geometry with certain ID and vertex/index data.
 	///

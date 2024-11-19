@@ -1,6 +1,9 @@
 #include "SwapChain.h"
-#include "GPUDriver.h"
+
 #include <cassert>
+#include <sstream>
+
+#include "GPUDriver.h"
 
 
 SwapChainD3D11::SwapChainD3D11(GPUContextD3D11* context, GPUDriverD3D11* driver, HWND hWnd,
@@ -22,7 +25,7 @@ SwapChainD3D11::SwapChainD3D11(GPUContextD3D11* context, GPUDriverD3D11* driver,
 	UINT width = rc.right - rc.left;
 	UINT height = rc.bottom - rc.top;
 
-	DXGI_SWAP_CHAIN_DESC sd;
+	/*DXGI_SWAP_CHAIN_DESC sd;
 	::ZeroMemory(&sd, sizeof(sd));
 	sd.BufferCount = 1;
 	sd.BufferDesc.Width = width;
@@ -35,7 +38,7 @@ SwapChainD3D11::SwapChainD3D11(GPUContextD3D11* context, GPUDriverD3D11* driver,
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
 	sd.Windowed = !fullscreen;
-	sd.Flags = fullscreen ? DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH : 0;
+	sd.Flags = (fullscreen ? DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH : 0) | DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;*/
 
 	IDXGIDevice* dxgiDevice = nullptr;
 	hr = context_->device()->QueryInterface(__uuidof(IDXGIDevice), (void**)&dxgiDevice);
@@ -46,13 +49,54 @@ SwapChainD3D11::SwapChainD3D11(GPUContextD3D11* context, GPUDriverD3D11* driver,
 	IDXGIFactory* dxgiFactory = nullptr;
 	dxgiAdapter->GetParent(__uuidof(IDXGIFactory), (void**)&dxgiFactory);
 
-	hr = dxgiFactory->CreateSwapChain(context_->device(), &sd, &swap_chain_);
+	//hr = dxgiFactory->CreateSwapChain(context_->device(), &sd, swap_chain_.GetAddressOf());
+
+	//if (FAILED(hr)) {
+	//	std::ostringstream msg;
+
+	//	msg << "Error 0x" << hr;
+
+	//	// Unable to create swap chain
+	//	MessageBoxA(NULL, "Unable to create swap chain", msg.str().c_str(), MB_OK);
+
+	//	swap_chain_.Reset();
+	//}
+
+	DXGI_SWAP_CHAIN_DESC1 sd1;
+	::ZeroMemory(&sd1, sizeof sd1);
+	sd1.Width = NULL;
+	sd1.Height = NULL;
+	sd1.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	sd1.Stereo = FALSE;
+	sd1.SampleDesc.Count = 1;
+	sd1.SampleDesc.Quality = 0;
+	sd1.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	sd1.BufferCount = 2;
+	sd1.Scaling = DXGI_SCALING_STRETCH;
+	sd1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	sd1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+	sd1.Flags = DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
+
+	IDXGIFactory2* dxgiFactory1;
+	hr = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2), (void**)&dxgiFactory1);
+
+	hr = dxgiFactory1->CreateSwapChainForHwnd(dxgiDevice, hwnd_, &sd1, nullptr, NULL, swap_chain1_.GetAddressOf());
+
+	hr = swap_chain1_->QueryInterface(__uuidof(IDXGISwapChain), (void**)swap_chain_.GetAddressOf());
 
 	if (FAILED(hr)) {
+		std::ostringstream msg;
+
+		msg << "Error 0x" << hr;
+
 		// Unable to create swap chain
+		MessageBoxA(NULL, "Unable to create swap chain", msg.str().c_str(), MB_OK);
+
 		swap_chain_.Reset();
 		return;
 	}
+
+	swap_chain1_->GetBuffer(0, __uuidof(IDXGISurface1), (void**)surface_.GetAddressOf());
 
 	// Create a render target view
 	ID3D11Texture2D* pBackBuffer = nullptr;
@@ -158,6 +202,18 @@ void SwapChainD3D11::Resize(int width, int height) {
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
 	context_->immediate_context()->RSSetViewports(1, &vp);
+}
+
+HDC SwapChainD3D11::GetDC()
+{
+	HDC dc;
+	surface_->GetDC(FALSE, &dc);
+	return dc;
+}
+
+void SwapChainD3D11::ReleaseDC()
+{
+	surface_->ReleaseDC(NULL);
 }
 
 // Scale is calculated from monitor DPI, see Application::SetScale

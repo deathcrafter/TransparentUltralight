@@ -475,10 +475,9 @@ void GPUDriverD3D11::DrawGeometry(uint32_t geometry_id,
 		context_->DisableScissor();
 	}
 
-	immediate_ctx->VSSetConstantBuffers(0, 1, constant_buffer_.GetAddressOf());
-	immediate_ctx->PSSetConstantBuffers(0, 1, constant_buffer_.GetAddressOf());
+	immediate_ctx->VSSetConstantBuffers(0, 1, GetConstantBuffer().GetAddressOf());
+	immediate_ctx->PSSetConstantBuffers(0, 1, GetConstantBuffer().GetAddressOf());
 
-	MessageBox(NULL, L"DrawIndexed", L"Info", MB_OK);
 	immediate_ctx->DrawIndexed(indices_count, indices_offset, 0);
 	batch_count_++;
 }

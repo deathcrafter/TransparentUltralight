@@ -131,8 +131,11 @@ void Application::Run()
 		if (result == WAIT_TIMEOUT) {
 			Update();
 			for (auto window : windows_) {
-				if (window->NeedsRepaint())
-					InvalidateRect(window->hwnd(), nullptr, false);
+				//if (window->NeedsRepaint()) {
+				if (true) { // NeedsRepaint() is always false unless mouse over
+					window->InvalidateWindow();
+					window->Paint();
+				}
 			}
 			next_paint = std::chrono::steady_clock::now() + interval_ms;
 		}

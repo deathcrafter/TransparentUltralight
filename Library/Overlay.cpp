@@ -8,13 +8,13 @@
 static IndexType patternCW[] = { 0, 1, 3, 1, 2, 3 };
 static IndexType patternCCW[] = { 0, 3, 1, 1, 3, 2 };
 
-Overlay::Overlay(RefPtr<Window> window, uint32_t width, uint32_t height, int x, int y) :
+Overlay::Overlay(RefPtr<Window> window, uint32_t width, uint32_t height, int x, int y, ViewConfig cfg) :
 	window_(window), width_(width), height_(height), x_(x), y_(y), needs_update_(true),
 	use_gpu_(Platform::instance().gpu_driver()) {
 	if (use_gpu_)
 		driver_.reset((GPUDriverD3D11*)Platform::instance().gpu_driver());
 
-	ViewConfig view_config;
+	ViewConfig view_config = cfg;
 	view_config.initial_device_scale = window_->scale();
 	view_config.is_accelerated = use_gpu_;
 
@@ -23,7 +23,7 @@ Overlay::Overlay(RefPtr<Window> window, uint32_t width, uint32_t height, int x, 
 	window_->overlay_manager()->Add(this);
 }
 
-Overlay::Overlay(RefPtr<Window> window, RefPtr<View> view, int x, int y) :
+Overlay::Overlay(RefPtr<Window> window, RefPtr<View> view, int x, int y):
 	window_(window), view_(view), width_(view->width()),
 	height_(view->height()), x_(x), y_(y), needs_update_(true),
 	use_gpu_(Platform::instance().gpu_driver()) {
@@ -43,9 +43,9 @@ Overlay::~Overlay()
 	}
 }
 
-RefPtr<Overlay> Overlay::Create(RefPtr<Window> window, uint32_t width, uint32_t height, int x, int y)
+RefPtr<Overlay> Overlay::Create(RefPtr<Window> window, uint32_t width, uint32_t height, int x, int y, ViewConfig cfg)
 {
-	return AdoptRef(*(new Overlay(window, width, height, x, y)));
+	return AdoptRef(*(new Overlay(window, width, height, x, y, cfg)));
 }
 
 RefPtr<Overlay> Overlay::Create(RefPtr<Window> window, RefPtr<View> view, int x, int y)
@@ -60,7 +60,6 @@ void Overlay::Paint()
 
 	if (use_gpu_) {
 		UpdateGeometry();
-
 		driver_->DrawGeometry(geometry_id_, 6, 0, gpu_state_);
 	}
 	else if (view()->surface()) {
